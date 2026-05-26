@@ -37,4 +37,12 @@ public class LedgerEntry {
     public String getTransactionId() {
         return transactionId;
     }
+
+    public EntryType getType() {
+        return this.type;
+    }
+
+    public BigDecimal getAmount() {
+        return this.amount;
+    }
 }
