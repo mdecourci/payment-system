@@ -4,6 +4,7 @@ import com.payments.basic.domain.PaymentRequest;
 import com.payments.basic.entity.Transaction;
 import com.payments.basic.gateway.PaymentGateway;
 import com.payments.basic.repository.PaymentRepository;
+import com.payments.basic.types.FraudStatus;
 import com.payments.basic.types.PaymentStatus;
 
 public class PaymentProcessor {
@@ -11,18 +12,37 @@ public class PaymentProcessor {
     private final PaymentGateway gateway;
     private final PaymentRepository repository;
     private final NotificationService notificationService;
+    private final FraudDetectionService fraudService;
+    private final LedgerService ledgerService;
 
-    public PaymentProcessor(PaymentGateway gateway,
-                            PaymentRepository repository,
-                            NotificationService notificationService) {
+    public PaymentProcessor(
+            PaymentGateway gateway,
+            PaymentRepository repository,
+            NotificationService notificationService,
+            FraudDetectionService fraudService,
+            LedgerService ledgerService) {
+
         this.gateway = gateway;
         this.repository = repository;
         this.notificationService = notificationService;
+        this.fraudService = fraudService;
+        this.ledgerService = ledgerService;
     }
 
     public Transaction process(PaymentRequest request) {
+
+        FraudStatus status =
+                fraudService.evaluate(request);
+
+        if (status == FraudStatus.BLOCKED) {
+            throw new RuntimeException(
+                    "Payment blocked by fraud engine");
+        }
+
         Transaction tx =
-                new Transaction(request.userId(), request.amount());
+                new Transaction(
+                        request.userId(),
+                        request.amount());
 
         repository.save(tx);
 
@@ -30,15 +50,18 @@ public class PaymentProcessor {
 
         if (success) {
             tx.markSuccess();
+
+            ledgerService.recordPayment(
+                    tx.getTransactionId(),
+                    request.amount());
+
             notificationService.sendSuccess(
                     request.userId(),
-                    tx.getTransactionId()
-            );
+                    tx.getTransactionId());
         } else {
             tx.markFailed();
             notificationService.sendFailure(
-                    request.userId()
-            );
+                    request.userId());
         }
 
         repository.save(tx);
@@ -48,7 +71,8 @@ public class PaymentProcessor {
     public boolean refund(String txId) {
         Transaction tx = repository.findById(txId);
 
-        if (tx == null || tx.getStatus() != PaymentStatus.SUCCESS) {
+        if (tx == null ||
+                tx.getStatus() != PaymentStatus.SUCCESS) {
             return false;
         }
 
@@ -56,6 +80,11 @@ public class PaymentProcessor {
 
         if (refunded) {
             tx.markRefunded();
+
+            ledgerService.recordRefund(
+                    txId,
+                    tx.getAmount());
+
             repository.save(tx);
         }
 

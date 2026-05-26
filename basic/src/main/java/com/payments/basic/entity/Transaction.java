@@ -10,9 +10,9 @@ import java.util.UUID;
 @EqualsAndHashCode
 @ToString
 public class Transaction {
-    private String transactionId;
-    private String userId;
-    private BigDecimal amount;
+    private final String transactionId;
+    private final String userId;
+    private final BigDecimal amount;
     private PaymentStatus status;
 
     public Transaction(String userId, BigDecimal amount) {
@@ -24,6 +24,10 @@ public class Transaction {
 
     public String getTransactionId() {
         return transactionId;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
     }
 
     public PaymentStatus getStatus() {
