@@ -15,18 +15,11 @@ public class LedgerService {
         this.repository = repository;
     }
 
-    public void recordPayment(
-            String txId,
-            BigDecimal amount) {
+    public void recordPayment(String txId, BigDecimal amount) {
 
-        LedgerEntry debit =
-                new LedgerEntry(
-                        txId,
-                        AccountType.CUSTOMER,
-                        EntryType.DEBIT,
-                        amount);
+        final var debit = new LedgerEntry(txId, AccountType.CUSTOMER, EntryType.DEBIT, amount);
 
-        LedgerEntry credit =
+        final var credit =
                 new LedgerEntry(
                         txId,
                         AccountType.PLATFORM,

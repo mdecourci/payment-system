@@ -39,29 +39,20 @@ public class PaymentProcessor {
                     "Payment blocked by fraud engine");
         }
 
-        Transaction tx =
-                new Transaction(
-                        request.userId(),
-                        request.amount());
+        final var tx = new Transaction(request.userId(), request.amount());
 
         repository.save(tx);
 
-        boolean success = gateway.charge(request);
+        final var success = gateway.charge(request);
 
         if (success) {
             tx.markSuccess();
+            ledgerService.recordPayment(tx.getTransactionId(), request.amount());
 
-            ledgerService.recordPayment(
-                    tx.getTransactionId(),
-                    request.amount());
-
-            notificationService.sendSuccess(
-                    request.userId(),
-                    tx.getTransactionId());
+            notificationService.sendSuccess(request.userId(), tx.getTransactionId());
         } else {
             tx.markFailed();
-            notificationService.sendFailure(
-                    request.userId());
+            notificationService.sendFailure(request.userId());
         }
 
         repository.save(tx);
@@ -81,9 +72,7 @@ public class PaymentProcessor {
         if (refunded) {
             tx.markRefunded();
 
-            ledgerService.recordRefund(
-                    txId,
-                    tx.getAmount());
+            ledgerService.recordRefund(txId, tx.getAmount());
 
             repository.save(tx);
         }

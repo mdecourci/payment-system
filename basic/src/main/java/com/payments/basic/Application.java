@@ -22,16 +22,14 @@ public class Application {
         final var fraudDetectionService = new FraudDetectionService();
         final var ledgerService = new LedgerService(ledgerRepository);
 
-        PaymentProcessor processor =
+        final var processor =
                 new PaymentProcessor(gateway, repository, notification, fraudDetectionService, ledgerService);
 
-        PaymentRequest request =
-                new PaymentRequest(
-                        "user123",
+        final var request =
+                new PaymentRequest("user123",
                         new BigDecimal("99.99"),
                         "USD",
-                        "CARD"
-                );
+                        "CARD", "Dummy");
 
         Transaction tx = processor.process(request);
 

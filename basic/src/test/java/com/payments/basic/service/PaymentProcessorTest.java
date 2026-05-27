@@ -63,7 +63,8 @@ public class PaymentProcessorTest {
                         "user123",
                         new BigDecimal("100.00"),
                         "USD",
-                        "CARD"
+                        "CARD",
+                        "Dummy"
                 );
 
         Transaction tx =
@@ -95,7 +96,8 @@ public class PaymentProcessorTest {
                         "user123",
                         new BigDecimal("250.00"),
                         "USD",
-                        "CARD"
+                        "CARD",
+                        "Dummy"
                 );
 
         Transaction tx =
@@ -135,7 +137,8 @@ public class PaymentProcessorTest {
                         "user123",
                         new BigDecimal("75.00"),
                         "USD",
-                        "CARD"
+                        "CARD",
+                        "Dummy"
                 );
 
         Transaction tx =
@@ -167,7 +170,8 @@ public class PaymentProcessorTest {
                         "user123",
                         new BigDecimal("50.00"),
                         "USD",
-                        "CARD"
+                        "CARD",
+                        "Dummy"
                 );
 
         Transaction tx =
@@ -194,7 +198,8 @@ public class PaymentProcessorTest {
                         "fraud_user_1",
                         new BigDecimal("100.00"),
                         "USD",
-                        "CARD"
+                        "CARD",
+                        "Dummy"
                 );
 
         RuntimeException ex =
@@ -217,7 +222,8 @@ public class PaymentProcessorTest {
                         "normal_user",
                         new BigDecimal("15000.00"),
                         "USD",
-                        "CARD"
+                        "CARD",
+                        "Dummy"
                 );
 
         Transaction tx =
