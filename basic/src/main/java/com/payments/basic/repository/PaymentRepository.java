@@ -1,17 +1,24 @@
 package com.payments.basic.repository;
-import com.payments.basic.entity.Transaction;
+
+import com.payments.basic.model.Transaction;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class PaymentRepository {
+
     private final Map<String, Transaction> storage = new ConcurrentHashMap<>();
 
-    public void save(Transaction tx) {
-        storage.put(tx.getTransactionId(), tx);
+    public Transaction save(Transaction tx) {
+
+        storage.put(tx.transactionId(), tx);
+
+        return tx;
     }
 
-    public Transaction findById(String id) {
-        return storage.get(id);
+    public Optional<Transaction> findById(String id) {
+
+        return Optional.ofNullable(storage.get(id));
     }
 }

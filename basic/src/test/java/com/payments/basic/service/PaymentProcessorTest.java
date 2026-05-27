@@ -1,16 +1,10 @@
 package com.payments.basic.service;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-import com.payments.basic.domain.PaymentRequest;
-import com.payments.basic.entity.LedgerEntry;
-import com.payments.basic.entity.Transaction;
 import com.payments.basic.gateway.MockPaymentGateway;
-import com.payments.basic.gateway.PaymentGateway;
+import com.payments.basic.model.*;
+import com.payments.basic.repository.IdempotencyRepository;
 import com.payments.basic.repository.LedgerRepository;
 import com.payments.basic.repository.PaymentRepository;
-import com.payments.basic.types.EntryType;
-import com.payments.basic.types.PaymentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,229 +12,155 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PaymentProcessorTest {
+class PaymentProcessorTest {
 
     private PaymentProcessor processor;
+
     private PaymentRepository paymentRepository;
     private LedgerRepository ledgerRepository;
 
     @BeforeEach
     void setup() {
 
-        PaymentGateway gateway =
-                new MockPaymentGateway();
+        paymentRepository = new PaymentRepository();
 
-        paymentRepository =
-                new PaymentRepository();
+        ledgerRepository = new LedgerRepository();
 
-        ledgerRepository =
-                new LedgerRepository();
-
-        NotificationService notificationService =
-                new NotificationService();
-
-        FraudDetectionService fraudService =
-                new FraudDetectionService();
-
-        LedgerService ledgerService =
-                new LedgerService(ledgerRepository);
-
-        processor =
-                new PaymentProcessor(
-                        gateway,
-                        paymentRepository,
-                        notificationService,
-                        fraudService,
-                        ledgerService
-                );
+        processor = new PaymentProcessor(new MockPaymentGateway(), paymentRepository, new FraudDetectionService(), new LedgerService(ledgerRepository), new IdempotencyService(new IdempotencyRepository(), paymentRepository), new NotificationService());
     }
 
     @Test
     void shouldProcessSuccessfulPayment() {
 
-        PaymentRequest request =
-                new PaymentRequest(
-                        "user123",
-                        new BigDecimal("100.00"),
-                        "USD",
-                        "CARD",
-                        "Dummy"
-                );
+        var request = new PaymentRequest("user123", BigDecimal.valueOf(100), "USD", "CARD", "idem-1");
 
-        Transaction tx =
-                processor.process(request);
+        var tx = processor.process(request);
 
-        assertNotNull(tx);
-        assertEquals(
-                PaymentStatus.SUCCESS,
-                tx.getStatus()
-        );
-
-        Transaction stored =
-                paymentRepository.findById(
-                        tx.getTransactionId()
-                );
-
-        assertNotNull(stored);
-        assertEquals(
-                PaymentStatus.SUCCESS,
-                stored.getStatus()
-        );
+        assertAll(() -> assertNotNull(tx), () -> assertEquals(PaymentStatus.SUCCESS, tx.status()), () -> assertEquals(BigDecimal.valueOf(100), tx.amount()));
     }
 
     @Test
-    void shouldCreateBalancedLedgerEntries() {
+    void shouldReturnExistingTransactionForSameIdempotencyKey() {
 
-        PaymentRequest request =
-                new PaymentRequest(
-                        "user123",
-                        new BigDecimal("250.00"),
-                        "USD",
-                        "CARD",
-                        "Dummy"
-                );
+        var request = new PaymentRequest("user123", BigDecimal.valueOf(50), "USD", "CARD", "same-key");
 
-        Transaction tx =
-                processor.process(request);
+        var tx1 = processor.process(request);
 
-        var entries =
-                ledgerRepository.findByTransactionId(
-                        tx.getTransactionId()
-                );
+        var tx2 = processor.process(request);
 
-        assertEquals(2, entries.size());
-
-        BigDecimal debitTotal = BigDecimal.ZERO;
-        BigDecimal creditTotal = BigDecimal.ZERO;
-
-        for (LedgerEntry entry : entries) {
-
-            if (entry.getType() == EntryType.DEBIT) {
-                debitTotal =
-                        debitTotal.add(entry.getAmount());
-            }
-
-            if (entry.getType() == EntryType.CREDIT) {
-                creditTotal =
-                        creditTotal.add(entry.getAmount());
-            }
-        }
-
-        assertEquals(debitTotal, creditTotal);
-    }
-
-    @Test
-    void shouldRefundSuccessfulPayment() {
-
-        PaymentRequest request =
-                new PaymentRequest(
-                        "user123",
-                        new BigDecimal("75.00"),
-                        "USD",
-                        "CARD",
-                        "Dummy"
-                );
-
-        Transaction tx =
-                processor.process(request);
-
-        boolean refunded =
-                processor.refund(
-                        tx.getTransactionId()
-                );
-
-        assertTrue(refunded);
-
-        Transaction updated =
-                paymentRepository.findById(
-                        tx.getTransactionId()
-                );
-
-        assertEquals(
-                PaymentStatus.REFUNDED,
-                updated.getStatus()
-        );
-    }
-
-    @Test
-    void shouldCreateRefundLedgerEntries() {
-
-        PaymentRequest request =
-                new PaymentRequest(
-                        "user123",
-                        new BigDecimal("50.00"),
-                        "USD",
-                        "CARD",
-                        "Dummy"
-                );
-
-        Transaction tx =
-                processor.process(request);
-
-        processor.refund(
-                tx.getTransactionId()
-        );
-
-        var entries =
-                ledgerRepository.findByTransactionId(
-                        tx.getTransactionId()
-                );
-
-        // 2 for payment + 2 for refund
-        assertEquals(4, entries.size());
+        assertAll(() -> assertEquals(tx1.transactionId(), tx2.transactionId()), () -> assertEquals(tx1.status(), tx2.status()));
     }
 
     @Test
     void shouldBlockFraudulentUser() {
 
-        PaymentRequest request =
-                new PaymentRequest(
-                        "fraud_user_1",
-                        new BigDecimal("100.00"),
-                        "USD",
-                        "CARD",
-                        "Dummy"
-                );
+        var request = new PaymentRequest("fraud_user", BigDecimal.valueOf(100), "USD", "CARD", "fraud-key");
 
-        RuntimeException ex =
-                assertThrows(
-                        RuntimeException.class,
-                        () -> processor.process(request)
-                );
+        var ex = assertThrows(RuntimeException.class, () -> processor.process(request));
 
-        assertEquals(
-                "Payment blocked by fraud engine",
-                ex.getMessage()
-        );
+        assertEquals("Fraud blocked transaction", ex.getMessage());
     }
 
     @Test
-    void shouldMarkLargeTransactionSuspiciousButAllow() {
+    void shouldMarkLargeTransactionAsSuspicious() {
 
-        PaymentRequest request =
-                new PaymentRequest(
-                        "normal_user",
-                        new BigDecimal("15000.00"),
-                        "USD",
-                        "CARD",
-                        "Dummy"
-                );
+        var fraudService = new FraudDetectionService();
 
-        Transaction tx =
-                processor.process(request);
+        var request = new PaymentRequest("normal_user", BigDecimal.valueOf(20_000), "USD", "CARD", "idem-large");
 
-        assertEquals(
-                PaymentStatus.SUCCESS,
-                tx.getStatus()
-        );
+        var result = fraudService.evaluate(request);
+
+        assertEquals(FraudStatus.SUSPICIOUS, result);
+    }
+
+    @Test
+    void shouldCreateBalancedLedgerEntries() {
+
+        var request = new PaymentRequest("user123", BigDecimal.valueOf(75), "USD", "CARD", "ledger-key");
+
+        var tx = processor.process(request);
+
+        var ledgerService = new LedgerService(ledgerRepository);
+
+        assertTrue(ledgerService.isBalanced(tx.transactionId()));
+    }
+
+    @Test
+    void shouldCreateTwoLedgerEntriesForPayment() {
+
+        var request = new PaymentRequest("user123", BigDecimal.valueOf(90), "USD", "CARD", "ledger-count");
+
+        var tx = processor.process(request);
+
+        var entries = ledgerRepository.findByTransactionId(tx.transactionId());
+
+        assertEquals(2, entries.size());
+    }
+
+    @Test
+    void shouldRefundSuccessfulPayment() {
+
+        var request = new PaymentRequest("user123", BigDecimal.valueOf(120), "USD", "CARD", "refund-key");
+
+        var tx = processor.process(request);
+
+        boolean refunded = processor.refund(tx.transactionId());
+
+        var updated = paymentRepository.findById(tx.transactionId()).orElseThrow();
+
+        assertAll(() -> assertTrue(refunded), () -> assertEquals(PaymentStatus.REFUNDED, updated.status()));
+    }
+
+    @Test
+    void shouldCreateRefundLedgerEntries() {
+
+        var request = new PaymentRequest("user123", BigDecimal.valueOf(130), "USD", "CARD", "refund-ledger");
+
+        var tx = processor.process(request);
+
+        processor.refund(tx.transactionId());
+
+        var entries = ledgerRepository.findByTransactionId(tx.transactionId());
+
+        // 2 payment + 2 refund
+        assertEquals(4, entries.size());
     }
 
     @Test
     void shouldFailRefundForUnknownTransaction() {
 
-        boolean refunded =
-                processor.refund("missing-tx");
+        boolean refunded = processor.refund("missing-transaction");
 
         assertFalse(refunded);
+    }
+
+    @Test
+    void shouldStoreTransactionInRepository() {
+
+        var request = new PaymentRequest("user123", BigDecimal.valueOf(200), "USD", "CARD", "repo-key");
+
+        var tx = processor.process(request);
+
+        var stored = paymentRepository.findById(tx.transactionId());
+
+        assertTrue(stored.isPresent());
+
+        assertEquals(tx.transactionId(), stored.get().transactionId());
+    }
+
+    @Test
+    void shouldCalculateLedgerTotalsUsingStreams() {
+
+        var request = new PaymentRequest("user123", BigDecimal.valueOf(300), "USD", "CARD", "stream-key");
+
+        var tx = processor.process(request);
+
+        var entries = ledgerRepository.findByTransactionId(tx.transactionId());
+
+        var debitTotal = entries.stream().filter(e -> e.entryType() == EntryType.DEBIT).map(LedgerEntry::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        var creditTotal = entries.stream().filter(e -> e.entryType() == EntryType.CREDIT).map(LedgerEntry::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        assertEquals(debitTotal, creditTotal);
     }
 }

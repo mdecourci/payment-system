@@ -1,18 +1,22 @@
 package com.payments.basic.gateway;
 
-import com.payments.basic.domain.PaymentRequest;
+import com.payments.basic.model.PaymentRequest;
 
-public class MockPaymentGateway implements PaymentGateway {
+public final class MockPaymentGateway implements PaymentGateway {
 
     @Override
     public boolean charge(PaymentRequest request) {
-        System.out.println("Charging " + request.amount());
-        return true; // simulate success
+
+        System.out.printf("Charging %s %s%n", request.amount(), request.currency());
+
+        return true;
     }
 
     @Override
     public boolean refund(String transactionId) {
-        System.out.println("Refunding " + transactionId);
+
+        System.out.printf("Refunding %s%n", transactionId);
+
         return true;
     }
 }

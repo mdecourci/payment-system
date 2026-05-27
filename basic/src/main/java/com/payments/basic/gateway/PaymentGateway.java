@@ -1,8 +1,10 @@
 package com.payments.basic.gateway;
 
-import com.payments.basic.domain.PaymentRequest;
+import com.payments.basic.model.PaymentRequest;
 
-public interface PaymentGateway {
+public sealed interface PaymentGateway permits MockPaymentGateway {
+
     boolean charge(PaymentRequest request);
+
     boolean refund(String transactionId);
 }

@@ -1,41 +1,39 @@
 package com.payments.basic;
 
-import com.payments.basic.domain.PaymentRequest;
-import com.payments.basic.entity.Transaction;
 import com.payments.basic.gateway.MockPaymentGateway;
-import com.payments.basic.gateway.PaymentGateway;
+import com.payments.basic.model.PaymentRequest;
+import com.payments.basic.repository.IdempotencyRepository;
 import com.payments.basic.repository.LedgerRepository;
 import com.payments.basic.repository.PaymentRepository;
-import com.payments.basic.service.FraudDetectionService;
-import com.payments.basic.service.LedgerService;
-import com.payments.basic.service.NotificationService;
-import com.payments.basic.service.PaymentProcessor;
+import com.payments.basic.service.*;
 
 import java.math.BigDecimal;
 
 public class Application {
+
     public static void main(String[] args) {
-        PaymentGateway gateway = new MockPaymentGateway();
-        PaymentRepository repository = new PaymentRepository();
-        final var ledgerRepository = new LedgerRepository();
-        NotificationService notification = new NotificationService();
-        final var fraudDetectionService = new FraudDetectionService();
-        final var ledgerService = new LedgerService(ledgerRepository);
 
-        final var processor =
-                new PaymentProcessor(gateway, repository, notification, fraudDetectionService, ledgerService);
+        var paymentRepository = new PaymentRepository();
 
-        final var request =
-                new PaymentRequest("user123",
-                        new BigDecimal("99.99"),
-                        "USD",
-                        "CARD", "Dummy");
+        var ledgerRepository = new LedgerRepository();
 
-        Transaction tx = processor.process(request);
+        var processor = new PaymentProcessor(new MockPaymentGateway(), paymentRepository, new FraudDetectionService(), new LedgerService(ledgerRepository), new IdempotencyService(new IdempotencyRepository(), paymentRepository), new NotificationService());
 
-        System.out.println("Tx ID: " + tx.getTransactionId());
-        System.out.println("Status: " + tx.getStatus());
+        var request = new PaymentRequest("user123", BigDecimal.valueOf(99.99), "USD", "CARD", "idem-123");
 
-        processor.refund(tx.getTransactionId());
+        var tx1 = processor.process(request);
+
+        System.out.println(tx1);
+
+        // Same request → returns same tx
+        var tx2 = processor.process(request);
+
+        System.out.println(tx2);
+
+        System.out.println("Same transaction: " + tx1.transactionId().equals(tx2.transactionId()));
+
+        System.out.println("Ledger balanced: " + new LedgerService(ledgerRepository).isBalanced(tx1.transactionId()));
+
+        processor.refund(tx1.transactionId());
     }
 }
