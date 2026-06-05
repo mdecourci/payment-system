@@ -1,6 +1,8 @@
 package com.payments.basic.fraud;
 
-import com.payments.basic.model.*;
+import com.payments.basic.model.Card;
+import com.payments.basic.model.FraudVerdict;
+import com.payments.basic.model.Transaction;
 import com.payments.basic.repository.InMemoryStore;
 
 import java.math.BigDecimal;
@@ -10,7 +12,7 @@ import java.util.List;
 
 /**
  * Multi-rule fraud detection engine.
- *
+ * <p>
  * Each rule is a functional interface that produces a RuleResult.
  * A sealed RuleResult type represents PASS / FLAG / BLOCK.
  */
@@ -24,20 +26,18 @@ public final class FraudEngine {
     // Daily spend tracker: customerId → sum
     private final java.util.Map<String, BigDecimal> dailySpend = new java.util.HashMap<>();
 
-    public FraudEngine() { this(FraudConfig.defaults()); }
+    public FraudEngine() {
+        this(FraudConfig.defaults());
+    }
 
-    public FraudEngine(FraudConfig config) { this.config = config; }
+    public FraudEngine(FraudConfig config) {
+        this.config = config;
+    }
 
     // ── Public API ────────────────────────────────────────────────────────
 
     public EvaluationResult evaluate(Transaction txn, Card card) {
-        List<RuleResult> results = List.of(
-            checkHighAmount(txn),
-            checkDailyVelocity(txn),
-            checkHourlyCount(txn),
-            checkHighRiskCountry(card),
-            checkRecentAlerts(txn.customerId())
-        );
+        List<RuleResult> results = List.of(checkHighAmount(txn), checkDailyVelocity(txn), checkHourlyCount(txn), checkHighRiskCountry(card), checkRecentAlerts(txn.customerId()));
 
         // Collect alerts from non-pass results
         List<FraudAlert> alerts = new ArrayList<>();
@@ -64,14 +64,11 @@ public final class FraudEngine {
         }
 
         int clampedScore = Math.min(totalScore, 100);
-        FraudVerdict verdict = blockReason != null ? FraudVerdict.BLOCK
-                                   : clampedScore >= 50   ? FraudVerdict.REVIEW
-                                   :                        FraudVerdict.ALLOW;
+        FraudVerdict verdict = blockReason != null ? FraudVerdict.BLOCK : clampedScore >= 50 ? FraudVerdict.REVIEW : FraudVerdict.ALLOW;
 
         // Record velocity on non-blocked transactions
         if (verdict != FraudVerdict.BLOCK) {
-            velocityMap.computeIfAbsent(txn.customerId(), k -> new ArrayList<>())
-                       .add(LocalDateTime.now());
+            velocityMap.computeIfAbsent(txn.customerId(), k -> new ArrayList<>()).add(LocalDateTime.now());
             dailySpend.merge(txn.customerId(), txn.amount().amount(), BigDecimal::add);
         }
 
@@ -90,31 +87,20 @@ public final class FraudEngine {
 
     private RuleResult checkHighAmount(Transaction txn) {
         if (!"USD".equals(txn.amount().currency())) return new RuleResult.Pass("HIGH_AMOUNT");
-        return txn.amount().amount().compareTo(config.maxSingleAmountUsd()) > 0
-            ? new RuleResult.Block("HIGH_AMOUNT",
-                "Amount %s exceeds limit $%s".formatted(txn.amount(), config.maxSingleAmountUsd()), 80)
-            : new RuleResult.Pass("HIGH_AMOUNT");
+        return txn.amount().amount().compareTo(config.maxSingleAmountUsd()) > 0 ? new RuleResult.Block("HIGH_AMOUNT", "Amount %s exceeds limit $%s".formatted(txn.amount(), config.maxSingleAmountUsd()), 80) : new RuleResult.Pass("HIGH_AMOUNT");
     }
 
     private RuleResult checkDailyVelocity(Transaction txn) {
         BigDecimal spent = dailySpend.getOrDefault(txn.customerId(), BigDecimal.ZERO);
         BigDecimal projected = spent.add(txn.amount().amount());
-        return projected.compareTo(config.maxDailySpendUsd()) > 0
-            ? new RuleResult.Block("DAILY_VELOCITY",
-                "Daily spend $%s would exceed limit $%s"
-                    .formatted(projected, config.maxDailySpendUsd()), 70)
-            : new RuleResult.Pass("DAILY_VELOCITY");
+        return projected.compareTo(config.maxDailySpendUsd()) > 0 ? new RuleResult.Block("DAILY_VELOCITY", "Daily spend $%s would exceed limit $%s".formatted(projected, config.maxDailySpendUsd()), 70) : new RuleResult.Pass("DAILY_VELOCITY");
     }
 
     private RuleResult checkHourlyCount(Transaction txn) {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(1);
-        List<LocalDateTime> timestamps = velocityMap.getOrDefault(
-                txn.customerId(), List.of());
+        List<LocalDateTime> timestamps = velocityMap.getOrDefault(txn.customerId(), List.of());
         long recent = timestamps.stream().filter(t -> t.isAfter(cutoff)).count();
-        return recent >= config.maxHourlyCount()
-            ? new RuleResult.Block("HOURLY_COUNT",
-                "%d transactions in past hour (limit=%d)".formatted(recent, config.maxHourlyCount()), 90)
-            : new RuleResult.Pass("HOURLY_COUNT");
+        return recent >= config.maxHourlyCount() ? new RuleResult.Block("HOURLY_COUNT", "%d transactions in past hour (limit=%d)".formatted(recent, config.maxHourlyCount()), 90) : new RuleResult.Pass("HOURLY_COUNT");
     }
 
     private RuleResult checkHighRiskCountry(Card card) {
@@ -124,13 +110,7 @@ public final class FraudEngine {
 
     private RuleResult checkRecentAlerts(String customerId) {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(1);
-        long blockAlerts = alertStore.stream()
-            .filter(a -> a.customerId().equals(customerId))
-            .filter(a -> a.blocked() && a.raisedAt().isAfter(cutoff))
-            .count();
-        return blockAlerts >= 3
-            ? new RuleResult.Flag("RECENT_BLOCKS",
-                "%d block alerts in past hour".formatted(blockAlerts), 40)
-            : new RuleResult.Pass("RECENT_BLOCKS");
+        long blockAlerts = alertStore.stream().filter(a -> a.customerId().equals(customerId)).filter(a -> a.blocked() && a.raisedAt().isAfter(cutoff)).count();
+        return blockAlerts >= 3 ? new RuleResult.Flag("RECENT_BLOCKS", "%d block alerts in past hour".formatted(blockAlerts), 40) : new RuleResult.Pass("RECENT_BLOCKS");
     }
 }

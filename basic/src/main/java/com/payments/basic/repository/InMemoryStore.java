@@ -2,7 +2,9 @@ package com.payments.basic.repository;
 
 import com.payments.basic.model.PaymentException;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -25,8 +27,7 @@ public class InMemoryStore<T> {
     }
 
     public T findByIdOrThrow(String id, String entityName) {
-        return findById(id).orElseThrow(() ->
-            new PaymentException.NotFound(entityName, id));
+        return findById(id).orElseThrow(() -> new PaymentException.NotFound(entityName, id));
     }
 
     public List<T> findAll() {
@@ -34,9 +35,7 @@ public class InMemoryStore<T> {
     }
 
     public List<T> findWhere(Predicate<T> predicate) {
-        return store.values().stream()
-                .filter(predicate)
-                .toList();    // Java 16+ toList() on Stream
+        return store.values().stream().filter(predicate).toList();    // Java 16+ toList() on Stream
     }
 
     public Stream<T> stream() {

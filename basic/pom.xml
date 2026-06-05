@@ -66,8 +66,8 @@
                         </manifestEntries>
                     </archive>
                 </configuration>
-        </plugin>
+            </plugin>
 
-    </plugins>
+        </plugins>
     </build>
 </project>

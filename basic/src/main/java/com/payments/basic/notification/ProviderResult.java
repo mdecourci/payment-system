@@ -5,13 +5,13 @@ package com.payments.basic.notification;
  */
 public sealed interface ProviderResult permits ProviderResult.Sent, ProviderResult.Failed {
 
+    default boolean isSuccess() {
+        return this instanceof Sent;
+    }
+
     record Sent(String providerMessageId) implements ProviderResult {
     }
 
     record Failed(String errorCode, String errorMessage) implements ProviderResult {
-    }
-
-    default boolean isSuccess() {
-        return this instanceof Sent;
     }
 }

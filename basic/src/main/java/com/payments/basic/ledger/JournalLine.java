@@ -5,8 +5,7 @@ import com.payments.basic.model.Money;
 
 import java.math.BigDecimal;
 
-public record JournalLine(String accountId, String accountCode, EntryDirection direction, Money amount,
-                          String memo) {
+public record JournalLine(String accountId, String accountCode, EntryDirection direction, Money amount, String memo) {
     /**
      * Convention: DEBIT = positive, CREDIT = negative for balance verification.
      */

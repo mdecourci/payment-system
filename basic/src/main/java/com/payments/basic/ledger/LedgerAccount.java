@@ -14,7 +14,7 @@ public record LedgerAccount(String id, String code, String name, LedgerAccountTy
         id = id != null ? id : "ACC-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
     }
 
-    public LedgerAccount(String code, String name, LedgerAccountType  type, String currency) {
+    public LedgerAccount(String code, String name, LedgerAccountType type, String currency) {
         this(null, code, name, type, currency);
     }
 

@@ -11,9 +11,9 @@ public record Money(BigDecimal amount, String currency) {
 
     // ── Compact canonical constructor ─────────────────────────────────────
     public Money {
-        if (amount   == null) throw new IllegalArgumentException("amount required");
+        if (amount == null) throw new IllegalArgumentException("amount required");
         if (currency == null) throw new IllegalArgumentException("currency required");
-        amount   = amount.setScale(2, RoundingMode.HALF_UP);
+        amount = amount.setScale(2, RoundingMode.HALF_UP);
         currency = currency.toUpperCase();
     }
 
@@ -46,16 +46,31 @@ public record Money(BigDecimal amount, String currency) {
     }
 
     // ── Comparisons ───────────────────────────────────────────────────────
-    public boolean isPositive()            { return amount.compareTo(BigDecimal.ZERO) > 0; }
-    public boolean isZero()                { return amount.compareTo(BigDecimal.ZERO) == 0; }
-    public boolean isNegative()            { return amount.compareTo(BigDecimal.ZERO) < 0; }
-    public boolean isGreaterThan(Money o)  { assertSameCurrency(o); return amount.compareTo(o.amount) > 0; }
-    public boolean isLessThan(Money o)     { assertSameCurrency(o); return amount.compareTo(o.amount) < 0; }
+    public boolean isPositive() {
+        return amount.compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    public boolean isZero() {
+        return amount.compareTo(BigDecimal.ZERO) == 0;
+    }
+
+    public boolean isNegative() {
+        return amount.compareTo(BigDecimal.ZERO) < 0;
+    }
+
+    public boolean isGreaterThan(Money o) {
+        assertSameCurrency(o);
+        return amount.compareTo(o.amount) > 0;
+    }
+
+    public boolean isLessThan(Money o) {
+        assertSameCurrency(o);
+        return amount.compareTo(o.amount) < 0;
+    }
 
     private void assertSameCurrency(Money other) {
         if (!this.currency.equals(other.currency))
-            throw new IllegalArgumentException(
-                    "Currency mismatch: %s vs %s".formatted(currency, other.currency));
+            throw new IllegalArgumentException("Currency mismatch: %s vs %s".formatted(currency, other.currency));
     }
 
     @Override

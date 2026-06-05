@@ -1,12 +1,11 @@
 ## Code generation of Payment System in Java
 
-### ChatGpt
+### Claude AI - https://claude.ai
 
 #### Prompt(Text)
 
-Build a payment system in Java supporting Fraud detection, 
-Ledger / double-entry bookkeeping and idempotency, build a runnable skeleton system written 
-in Java 21 with standard feature like and not limited to records and java streams.
+Build a payment system in Java, building a skeleton system with code that can compile and run and in Java 21
+with standard feature like and not limited to records and java streams.
 
 #### Result
 
@@ -23,47 +22,25 @@ in Java 21 with standard feature like and not limited to records and java stream
 ##### Code structure:
 
 ```
-src/
-
- ├── Main.java
- ├── model/
- ├── service/
- ├── repository/
- ├── gateway/
- └── ledger/
+model/       Money · Customer · Card · Transaction (sealed State) · PaymentException (sealed)
+gateway/     PaymentGateway interface + MockGateway (sealed GatewayResponse)
+fraud/       FraudEngine — 5 rules, sealed RuleResult, FraudAlert records
+ledger/      Ledger — double-entry bookkeeping, JournalEntry/JournalLine records
+repository/  InMemoryStore<T> — swap for JPA without changing services
+service/     PaymentService — orchestrates charge · authorise · capture · refund · void
  ```
 
 ##### Additional generated information
+
 ###### Java 21 Features Used
 
-| Feature                      | Description |
-|------------------------------|-------------|
-| records                      | immutable domain models |
-| sealed interfaces            | gateway abstraction |
-| switch expressions            | gateway abstraction |
-| streams                      | ledger balancing |
-| Optional             | repository lookups |
-| var                | cleaner local inference |
-| immutable collections | List.of / Set.of |  
-
-###### Suggested Next Steps
-
-* Spring Boot 4
-* PostgreSQL
-* Kafka
-* Outbox pattern
-* Virtual threads
-* Redis idempotency
-* Event sourcing
-* Reconciliation jobs
-* Circuit breakers
-* OpenTelemetry
-* Webhooks
-* Multi-currency FX
-* Settlement batching
-  
-This skeleton already models the core patterns used in systems similar to:
-
-* Stripe
-* Adyen
-* PayPal
+| Feature                     | Where                                                                                                                                                                 |
+|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| records                     | Money, FraudAlert, EvaluationResult, FraudConfig, <br/>LedgerAccount, JournalLine, JournalEntry, GatewayResponse subtypes                                             |
+| Sealed classes + interfaces | PaymentException (sealed class, 8 permitted subclasses), <br/>Transaction.State (sealed interface), GatewayResponse (sealed interface), RuleResult (sealed interface) |
+| Pattern-matching switch     | Transaction.statusName(), PaymentService gateway dispatch, PaymentDemo.guard() <br/>— all exhaustive, no default needed                                               |
+| Record patterns             | case State.Approved(var auth, var pid) destructures records inline                                                                                                    |
+| instanceof pattern matching | PaymentException.FraudBlocked fb -> fb.riskScore()                                                                                                                    |
+| Text blocks                 | summaryReport(), banner() in demo                                                                                                                                     |
+| Stream .toList()            | InMemoryStore.findWhere()                                                                                                                                             |  
+| String.formatted()          | Throughout instead of String.format()                                                                                                                                 |  

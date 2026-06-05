@@ -2,6 +2,7 @@ package com.payments.basic.fraud;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+
 // ── Fraud alert record ────────────────────────────────────────────────
 public record FraudAlert(String id, String transactionId, String customerId, String ruleName, String reason,
                          int riskScore, boolean blocked, LocalDateTime raisedAt) {
