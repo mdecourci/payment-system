@@ -1,0 +1,5 @@
+package com.payments.system.container.model;
+
+public enum LedgerAccount {
+    CUSTOMER_FUNDS, MERCHANT_FUNDS, PAYMENT_PROCESSOR, SETTLEMENT_ACCOUNT, REFUND_ACCOUNT, FEE_ACCOUNT, SUSPENSE_ACCOUNT
+}
