@@ -13,14 +13,14 @@ import static jakarta.persistence.GenerationType.UUID;
 @Table(name = "refunds")
 public class Refund {
 
+    private final UUID paymentId;
+    private final BigDecimal amount;
+    @Enumerated(EnumType.STRING)
+    private final RefundStatus status;
     @Id
     @GeneratedValue(strategy = UUID)
     private UUID id;
-    private final UUID paymentId;
-    private final BigDecimal amount;
     private String reason;
-    @Enumerated(EnumType.STRING)
-    private final RefundStatus status;
     @CreatedDate
     private Instant createdAt;
 
