@@ -1,8 +1,9 @@
 spring:
   application:
     name: payment-service
+
   datasource:
-    url: jdbc:postgresql://localhost:5432/payments
+    url: jdbc:postgresql://postgres:5432/payments
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -14,11 +15,11 @@ spring:
       ddl-auto: update
 
   flyway:
-    enabled: true
+    enabled: false
 
   kafka:
     bootstrap-servers:
-      - localhost:9092
+      - kafka:9092
     producer:
       acks: all
       retries: 10

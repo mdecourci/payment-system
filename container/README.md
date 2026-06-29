@@ -37,6 +37,10 @@ Topics:
 ### Startup Instructions
 To run the application, you can use Docker Compose to set up the necessary services. 
 Make sure you have Docker and Docker Compose installed on your machine. 
+Build the docker image for the payment system by running the following command in the project directory:
+
+`podman build -t payment-system .`
+
 Run the following command to start the services:
 
 `docker-compose up 
